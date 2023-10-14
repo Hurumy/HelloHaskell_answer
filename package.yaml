@@ -46,6 +46,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - hellohaskell
+    - gloss
+    - mwc-random
 
 tests:
   hellohaskell-test:

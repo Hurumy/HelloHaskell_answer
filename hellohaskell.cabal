@@ -1,4 +1,4 @@
-cabal-version: 2.2
+cabal-version: 1.12
 
 -- This file has been generated from package.yaml by hpack version 0.36.0.
 --
@@ -7,12 +7,12 @@ cabal-version: 2.2
 name:           hellohaskell
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/Hurumy/hellohaskell#readme>
-homepage:       https://github.com/Hurumy/hellohaskell#readme
-bug-reports:    https://github.com/Hurumy/hellohaskell/issues
+homepage:       https://github.com/42Tokyo/HelloHaskell#readme
+bug-reports:    https://github.com/42Tokyo/HelloHaskell/issues
 author:         Hurumy
 maintainer:     sarrendish@gmail.com
 copyright:      2023 Hurumy
-license:        BSD-3-Clause
+license:        None
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -21,14 +21,12 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/Hurumy/hellohaskell
+  location: https://github.com/42Tokyo/HelloHaskell
 
 library
   exposed-modules:
       Lib
   other-modules:
-      Paths_hellohaskell
-  autogen-modules:
       Paths_hellohaskell
   hs-source-dirs:
       src
@@ -41,22 +39,20 @@ executable hellohaskell-exe
   main-is: Main.hs
   other-modules:
       Paths_hellohaskell
-  autogen-modules:
-      Paths_hellohaskell
   hs-source-dirs:
       app
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , gloss
     , hellohaskell
+    , mwc-random
   default-language: Haskell2010
 
 test-suite hellohaskell-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Paths_hellohaskell
-  autogen-modules:
       Paths_hellohaskell
   hs-source-dirs:
       test
