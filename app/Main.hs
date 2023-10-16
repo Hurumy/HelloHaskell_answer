@@ -35,7 +35,7 @@ data GameState = InGame | GameOver
 
 data CursorAction = MStop | MUp | MDown | MLeft | MRight | MEnter deriving Eq
 
-data CellState = Closed | Opened
+type CellState = (Position, Int)
 
 moveSnake :: CursorAction -> Position -> Position
 moveSnake MStop  (x, y) = (x, y)
@@ -49,6 +49,7 @@ data World = World
     { _state  :: GameState
     , _target :: [Position]
     , _cursor  :: Position
+	, _openedcell :: [CellState]
 	, _action :: CursorAction
     , _score  :: Int
     }
@@ -61,13 +62,14 @@ generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
 	targetH <- getRandomList 5 randomPosition gen
-	return $ World InGame targetH (0, 0) MStop 0
+	return $ World InGame targetH (0, 0) [] MStop 0
 
 drawWorld :: World -> IO Picture
 drawWorld World{..} = case _state of
     InGame -> pure $ pictures
         [ pictures $ map (drawCell red) _target
-        , drawCell (greyN 0.3) _cursor
+        , pictures $ map (drawCell cyan) $ map fst _openedcell
+		, drawCell (greyN 0.3) _cursor
         , translate (-wWidth/2+10) (-wHeight/2+10)  . scale 0.2 0.2 $ text ("SCORE: " ++ show _score)
         ]
         where
@@ -100,11 +102,12 @@ stepWorld :: Float -> World -> IO World
 stepWorld _ w@World{..} = case _state of
     InGame -> do
         let (x, y) = moveSnake _action _cursor
-            cursor = (x, y)
         if (x, y) `elem` _target && _action == MEnter
             then pure $ w { _state = GameOver }
+		else if _action == MEnter
+			then pure $ w { _openedcell = ((x, y), 0) : _openedcell }
         else
-        	return $ w { _cursor = cursor }
+        	return $ w { _cursor = (x, y) }
     GameOver -> pure w
 
 
