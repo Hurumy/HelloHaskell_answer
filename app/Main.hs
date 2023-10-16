@@ -44,7 +44,7 @@ moveSnake SARight (x, y) = (x + 1, y)
 data World = World
     { _state  :: GameState
     , _target :: [Position]
-    , _snake  :: [Position]
+    , _cursor  :: Position
     , _action :: SnakeAction
     , _score  :: Int
     }
@@ -55,12 +55,8 @@ getRandomList n sample gen = (:) <$> sample gen <*> getRandomList (n-1) sample g
 
 generateNewWorld :: IO World
 generateNewWorld = do
-    (targetH, snakeH) <- withSystemRandom . asGenIO $ \gen -> do
-        fix $ \loop -> do
-            targetH <- getRandomList 5 randomPosition gen
-            snakeH <- randomPosition gen
-            if targetH !! 0 == snakeH then loop else pure (targetH, snakeH)
-    pure $ World InGame targetH [snakeH] SAStop 0
+	targetH <- getRandomList 5 randomPosition gen
+    pure $ World InGame targetH (0, 0) SAStop 0
 
 drawWorld :: World -> IO Picture
 drawWorld World{..} = case _state of
@@ -99,7 +95,7 @@ stepWorld _ w@World{..} = case _state of
             snake = (x, y) : _snake
         if isSelfIntersection || x < 0 || x >= cWidth || y < 0 || y >= cHeight
             then pure $ w { _state = GameOver }
-            else if (x, y) == _target !! 0
+            else if map (x, y) == _target
                 then do
                     targetH <- withSystemRandom . asGenIO $ \gen -> do
                         fix $ \loop -> do
