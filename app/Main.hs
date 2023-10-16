@@ -101,7 +101,7 @@ stepWorld _ w@World{..} = case _state of
     InGame -> do
         let (x, y) = moveSnake _action _cursor
             cursor = (x, y)
-        if (x, y) `elem` _target
+        if (x, y) `elem` _target && _action == MEnter
             then pure $ w { _state = GameOver }
         else
         	return $ w { _cursor = cursor }
