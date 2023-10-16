@@ -33,20 +33,23 @@ randomPosition gen = (,) <$> uniformR (0, cWidth - 1) gen <*> uniformR (0, cHeig
 
 data GameState = InGame | GameOver
 
-data SnakeAction = SAStop | SAUp | SADown | SALeft | SARight deriving Eq
+data CursorAction = MStop | MUp | MDown | MLeft | MRight | MEnter deriving Eq
 
-moveSnake :: SnakeAction -> Position -> Position
-moveSnake SAStop  (x, y) = (x, y)
-moveSnake SAUp    (x, y) = (x, y + 1)
-moveSnake SADown  (x, y) = (x, y - 1)
-moveSnake SALeft  (x, y) = (x - 1, y)
-moveSnake SARight (x, y) = (x + 1, y)
+data CellState = Closed | Opened
+
+moveSnake :: CursorAction -> Position -> Position
+moveSnake MStop  (x, y) = (x, y)
+moveSnake MUp    (x, y) = (x, y + 1)
+moveSnake MDown  (x, y) = (x, y - 1)
+moveSnake MLeft  (x, y) = (x - 1, y)
+moveSnake MRight (x, y) = (x + 1, y)
+moveSnake MEnter (x, y) = (x, y)
 
 data World = World
     { _state  :: GameState
     , _target :: [Position]
     , _cursor  :: Position
-    , _action :: SnakeAction
+	, _action :: CursorAction
     , _score  :: Int
     }
 
@@ -58,7 +61,7 @@ generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
 	targetH <- getRandomList 5 randomPosition gen
-	return $ World InGame targetH (0, 0) SAStop 0
+	return $ World InGame targetH (0, 0) MStop 0
 
 drawWorld :: World -> IO Picture
 drawWorld World{..} = case _state of
@@ -79,10 +82,15 @@ drawWorld World{..} = case _state of
 eventHandler :: Event -> World -> IO World
 eventHandler e w@World{..} = case _state of
     InGame -> case e of
-        EventKey (SpecialKey KeyUp)    Down _ _ -> pure $ if _action == SADown  then w else w { _action = SAUp }
-        EventKey (SpecialKey KeyDown)  Down _ _ -> pure $ if _action == SAUp    then w else w { _action = SADown }
-        EventKey (SpecialKey KeyLeft)  Down _ _ -> pure $ if _action == SARight then w else w { _action = SALeft }
-        EventKey (SpecialKey KeyRight) Down _ _ -> pure $ if _action == SALeft  then w else w { _action = SARight }
+        EventKey (SpecialKey KeyUp)    Down _ _ -> pure $ w { _action = MUp }
+        EventKey (SpecialKey KeyDown)  Down _ _ -> pure $ w { _action = MDown }
+        EventKey (SpecialKey KeyLeft)  Down _ _ -> pure $ w { _action = MLeft }
+        EventKey (SpecialKey KeyRight) Down _ _ -> pure $ w { _action = MRight }
+        EventKey (SpecialKey KeyEnter) Down _ _ -> pure $ w { _action = MEnter, _score = _score + 1 }
+        EventKey (SpecialKey KeyUp)    Up _ _ -> pure $ w { _action = MStop }
+        EventKey (SpecialKey KeyDown)  Up _ _ -> pure $ w { _action = MStop }
+        EventKey (SpecialKey KeyLeft)  Up _ _ -> pure $ w { _action = MStop }
+        EventKey (SpecialKey KeyRight) Up _ _ -> pure $ w { _action = MStop }
         _ -> pure w
     GameOver -> case e of
         EventKey (SpecialKey KeyEnter) Down _ _ -> generateNewWorld
@@ -96,7 +104,7 @@ stepWorld _ w@World{..} = case _state of
         if (x, y) `elem` _target
             then pure $ w { _state = GameOver }
         else
-        	return $ w { _cursor = cursor, _score = _score + 1}
+        	return $ w { _cursor = cursor }
     GameOver -> pure w
 
 
