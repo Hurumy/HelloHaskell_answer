@@ -1,4 +1,5 @@
 
+{-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
 import Data.Function (fix)
@@ -55,15 +56,15 @@ getRandomList n sample gen = (:) <$> sample gen <*> getRandomList (n-1) sample g
 
 generateNewWorld :: IO World
 generateNewWorld = do
+	gen <- createSystemRandom
 	targetH <- getRandomList 5 randomPosition gen
-    pure $ World InGame targetH (0, 0) SAStop 0
+	return $ World InGame targetH (0, 0) SAStop 0
 
 drawWorld :: World -> IO Picture
 drawWorld World{..} = case _state of
     InGame -> pure $ pictures
         [ pictures $ map (drawCell red) _target
-        , drawCell (greyN 0.3) (head _snake)
-        , pictures $ map (drawCell (greyN 0.6)) (tail _snake)
+        , drawCell (greyN 0.3) _cursor
         , translate (-wWidth/2+10) (-wHeight/2+10)  . scale 0.2 0.2 $ text ("SCORE: " ++ show _score)
         ]
         where
@@ -90,19 +91,12 @@ eventHandler e w@World{..} = case _state of
 stepWorld :: Float -> World -> IO World
 stepWorld _ w@World{..} = case _state of
     InGame -> do
-        let (x, y) = moveSnake _action $ head _snake
-            isSelfIntersection = _action /= SAStop && (x, y) `elem` _snake
-            snake = (x, y) : _snake
-        if isSelfIntersection || x < 0 || x >= cWidth || y < 0 || y >= cHeight
+        let (x, y) = moveSnake _action _cursor
+            cursor = (x, y)
+        if (x, y) `elem` _target
             then pure $ w { _state = GameOver }
-            else if map (x, y) == _target
-                then do
-                    targetH <- withSystemRandom . asGenIO $ \gen -> do
-                        fix $ \loop -> do
-                            targetH <- randomPosition gen
-                            if targetH `elem` snake then loop else pure targetH
-                    pure $ w { _target = [targetH], _snake = snake, _score = _score + 1}
-                else pure $ w { _snake = init snake}
+        else
+        	return $ w { _cursor = cursor, _score = _score + 1}
     GameOver -> pure w
 
 
