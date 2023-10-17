@@ -1,7 +1,9 @@
 
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
+import GHC.Float
 import Data.Function (fix)
 import Graphics.Gloss.Interface.IO.Game
 import System.Random.MWC
@@ -22,7 +24,7 @@ main = do
     playIO window white 10 world drawWorld eventHandler stepWorld
 
 cSize, cWidth, cHeight :: Num a => a
-cSize   = 30
+cSize = 40
 cWidth  = fromIntegral $ wWidth  `div` cSize
 cHeight = fromIntegral $ wHeight `div` cSize
 
@@ -64,11 +66,23 @@ generateNewWorld = do
 	targetH <- getRandomList 5 randomPosition gen
 	return $ World InGame targetH (0, 0) [] MStop 0
 
+drawNumberToEachCell :: CellState -> Picture
+drawNumberToEachCell cell = let
+	(x, y) = fst cell
+	_x = int2Float x
+	_y = int2Float y
+	num = show $ snd cell in
+	translate ((-wWidth/2) + (cSize*_x)) ((-wHeight/2) + (cSize*_y)) . scale 0.1 0.1 $ text num
+
+drawNumber :: [CellState] -> [Picture]
+drawNumber openedcell = map drawNumberToEachCell openedcell	
+
 drawWorld :: World -> IO Picture
 drawWorld World{..} = case _state of
-    InGame -> pure $ pictures
+    InGame ->　pure $ pictures
         [ pictures $ map (drawCell red) _target
         , pictures $ map (drawCell cyan) $ map fst _openedcell
+		, if length _openedcell /= 0 then pictures $ drawNumber _openedcell else translate 0 0 . scale 0.1 0.1 $ text ("test")
 		, drawCell (greyN 0.3) _cursor
         , translate (-wWidth/2+10) (-wHeight/2+10)  . scale 0.2 0.2 $ text ("SCORE: " ++ show _score)
         ]
