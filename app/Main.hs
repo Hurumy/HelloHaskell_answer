@@ -49,7 +49,6 @@ data World = World
     , _cursor  :: Position
 	, _openedcell :: [CellState]
 	, _action :: CursorAction
-    , _score  :: Int
     }
 
 randomPosition :: GenIO -> IO Position
@@ -63,7 +62,7 @@ generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
 	targetH <- getRandomList bombNum randomPosition gen
-	return $ World InGame targetH (0, 0) [] MStop 0
+	return $ World InGame targetH (0, 0) [] MStop
 
 drawNumberToEachCell :: CellState -> Picture
 drawNumberToEachCell cell = let
@@ -83,14 +82,12 @@ drawWorld World{..} = case _state of
         , pictures $ map (drawCell cyan) $ map fst _openedcell
 		, if length _openedcell /= 0 then pictures $ drawNumber _openedcell else translate 0 0 . scale 0.1 0.1 $ text ("")
 		, drawCell (greyN 0.3) _cursor
-        , translate (-wWidth/2+10) (-wHeight/2+10)  . scale 0.2 0.2 $ text ("SCORE: " ++ show _score)
         ]
         where
             cell = translate (-wWidth/2) (-wHeight/2) $ polygon [(0, 0), (0, cSize), (cSize, cSize), (cSize, 0)]
             drawCell c (x, y) = translate (fromIntegral x * cSize) (fromIntegral y * cSize) $ color c cell
     GameOver -> pure $ pictures
         [ translate (-270) 20     . scale 0.7 0.7 $ text "GAME OVER"
-        , translate (-100) (-50)  . scale 0.3 0.3 $ text ("SCORE: " ++ show _score)
         , translate (-200) (-120) . scale 0.3 0.3 $ text "Press Enter to Retry"
         ]
 
@@ -126,7 +123,7 @@ stepWorld _ w@World{..} = case _state of
         if (x, y) `elem` _target && _action == MEnter
             then pure $ w { _state = GameOver }
 		else if _action == MEnter && (x, y) `notElem` map fst _openedcell
-			then pure $ w { _openedcell = ((x, y), searchBombCell _target (x, y)) : _openedcell, _score = _score + 1 }
+			then pure $ w { _openedcell = ((x, y), searchBombCell _target (x, y)) : _openedcell }
         else
         	return $ w { _cursor = (x, y) }
     GameOver -> pure w
