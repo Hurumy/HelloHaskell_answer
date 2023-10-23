@@ -1,14 +1,14 @@
 
-{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
+import Data.Function
 import GHC.Float
 import Graphics.Gloss.Interface.IO.Game
 import System.Random.MWC
 
 bombNum :: Num a => a
-bombNum = 10
+bombNum = ((cWidth) * (cHeight) - 1)
 
 wWidth, wHeight :: Num a => a
 wWidth  = 640
@@ -31,7 +31,7 @@ type Position = (Int, Int)
 
 type CellState = (Position, Int)
 
-data GameState = InGame | GameOver
+data GameState = InGame | GameOver | GameClear
 
 data CursorAction = MStop | MUp | MDown | MLeft | MRight | MEnter deriving Eq
 
@@ -54,10 +54,14 @@ data World = World
 randomPosition :: GenIO -> IO Position
 randomPosition gen = (,) <$> uniformR (0, cWidth - 1) gen <*> uniformR (0, cHeight - 1) gen
 
-getRandomList :: Variate a => Int -> (GenIO -> IO a) -> GenIO -> IO [a]
+getRandomList :: Int -> (GenIO -> IO Position) -> GenIO -> IO [Position]
 getRandomList 0 _ _ = pure []
-getRandomList n sample gen = (:) <$> sample gen <*> getRandomList (n-1) sample gen
-
+getRandomList n sample gen = do
+	lst <- getRandomList (n-1) sample gen
+	fix $ \loop -> do
+		gena <- sample gen
+		if gena `notElem` lst then pure $ [gena] ++ lst else loop
+	
 generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
@@ -90,6 +94,10 @@ drawWorld World{..} = case _state of
         [ translate (-270) 20     . scale 0.7 0.7 $ text "GAME OVER"
         , translate (-200) (-120) . scale 0.3 0.3 $ text "Press Enter to Retry"
         ]
+    GameClear -> pure $ pictures
+		[ translate (-270) 20 . scale 0.7 0.7 $ text "Game Clear!!"
+		, translate (-200) (-120) . scale 0.3 0.3 $ text "Press Enter to Retry"
+		]
 
 eventHandler :: Event -> World -> IO World
 eventHandler e w@World{..} = case _state of
@@ -107,6 +115,9 @@ eventHandler e w@World{..} = case _state of
     GameOver -> case e of
         EventKey (SpecialKey KeyEnter) Down _ _ -> generateNewWorld
         _ -> pure w
+    GameClear -> case e of
+		EventKey (SpecialKey KeyEnter) Down _ _ -> generateNewWorld
+		_ -> pure w
 
 isBombCell :: [Position] -> Position -> Int
 isBombCell p (x, y) = if (x, y) `elem` p then 1 else 0
@@ -122,10 +133,13 @@ stepWorld _ w@World{..} = case _state of
         let (x, y) = moveSnake _action _cursor
         if (x, y) `elem` _target && _action == MEnter
             then pure $ w { _state = GameOver }
+		else if length _openedcell == (cWidth * cHeight) - bombNum
+			then pure $ w { _state = GameClear }
 		else if _action == MEnter && (x, y) `notElem` map fst _openedcell
 			then pure $ w { _openedcell = ((x, y), searchBombCell _target (x, y)) : _openedcell }
         else
         	return $ w { _cursor = (x, y) }
     GameOver -> pure w
+    GameClear -> pure w
 
 
