@@ -4,12 +4,11 @@
 {-# LANGUAGE RecordWildCards #-}
 
 import GHC.Float
-import Data.Function (fix)
 import Graphics.Gloss.Interface.IO.Game
 import System.Random.MWC
 
 bombNum :: Num a => a
-bombNum = 5
+bombNum = 10
 
 wWidth, wHeight :: Num a => a
 wWidth  = 640
@@ -63,7 +62,7 @@ getRandomList n sample gen = (:) <$> sample gen <*> getRandomList (n-1) sample g
 generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
-	targetH <- getRandomList 5 randomPosition gen
+	targetH <- getRandomList bombNum randomPosition gen
 	return $ World InGame targetH (0, 0) [] MStop 0
 
 drawNumberToEachCell :: CellState -> Picture
@@ -72,7 +71,7 @@ drawNumberToEachCell cell = let
 	_x = int2Float x
 	_y = int2Float y
 	num = show $ snd cell in
-	translate ((-wWidth/2) + (cSize*_x)) ((-wHeight/2) + (cSize*_y)) . scale 0.1 0.1 $ text num
+	translate ((-wWidth/2) + (cSize*_x) + (cSize/2 - 5)) ((-wHeight/2) + (cSize*_y) + (cSize/2 - 5)) . scale 0.1 0.1 $ text num
 
 drawNumber :: [CellState] -> [Picture]
 drawNumber openedcell = map drawNumberToEachCell openedcell	
@@ -82,7 +81,7 @@ drawWorld World{..} = case _state of
     InGame ->　pure $ pictures
         [ pictures $ map (drawCell red) _target
         , pictures $ map (drawCell cyan) $ map fst _openedcell
-		, if length _openedcell /= 0 then pictures $ drawNumber _openedcell else translate 0 0 . scale 0.1 0.1 $ text ("test")
+		, if length _openedcell /= 0 then pictures $ drawNumber _openedcell else translate 0 0 . scale 0.1 0.1 $ text ("")
 		, drawCell (greyN 0.3) _cursor
         , translate (-wWidth/2+10) (-wHeight/2+10)  . scale 0.2 0.2 $ text ("SCORE: " ++ show _score)
         ]
@@ -102,7 +101,7 @@ eventHandler e w@World{..} = case _state of
         EventKey (SpecialKey KeyDown)  Down _ _ -> pure $ w { _action = MDown }
         EventKey (SpecialKey KeyLeft)  Down _ _ -> pure $ w { _action = MLeft }
         EventKey (SpecialKey KeyRight) Down _ _ -> pure $ w { _action = MRight }
-        EventKey (SpecialKey KeyEnter) Down _ _ -> pure $ w { _action = MEnter, _score = _score + 1 }
+        EventKey (SpecialKey KeyEnter) Down _ _ -> pure $ w { _action = MEnter }
         EventKey (SpecialKey KeyUp)    Up _ _ -> pure $ w { _action = MStop }
         EventKey (SpecialKey KeyDown)  Up _ _ -> pure $ w { _action = MStop }
         EventKey (SpecialKey KeyLeft)  Up _ _ -> pure $ w { _action = MStop }
@@ -112,17 +111,24 @@ eventHandler e w@World{..} = case _state of
         EventKey (SpecialKey KeyEnter) Down _ _ -> generateNewWorld
         _ -> pure w
 
+isBombCell :: [Position] -> Position -> Int
+isBombCell p (x, y) = if (x, y) `elem` p then 1 else 0
+
+searchBombCell :: [Position] -> Position -> Int
+searchBombCell bom (x, y) = let
+	lst = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y + 1), (x - 1, y - 1)] in
+	foldr (+) 0 (map (isBombCell bom) lst)
+
 stepWorld :: Float -> World -> IO World
 stepWorld _ w@World{..} = case _state of
     InGame -> do
         let (x, y) = moveSnake _action _cursor
         if (x, y) `elem` _target && _action == MEnter
             then pure $ w { _state = GameOver }
-		else if _action == MEnter
-			then pure $ w { _openedcell = ((x, y), 0) : _openedcell }
+		else if _action == MEnter && (x, y) `notElem` map fst _openedcell
+			then pure $ w { _openedcell = ((x, y), searchBombCell _target (x, y)) : _openedcell, _score = _score + 1 }
         else
         	return $ w { _cursor = (x, y) }
     GameOver -> pure w
-
 
 
