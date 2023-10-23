@@ -14,6 +14,11 @@ wWidth, wHeight :: Num a => a
 wWidth  = 640
 wHeight = 480
 
+cSize, cWidth, cHeight :: Num a => a
+cSize = 40
+cWidth  = fromIntegral $ wWidth  `div` cSize
+cHeight = fromIntegral $ wHeight `div` cSize
+
 window :: Display
 window = InWindow "Minesweeper" (wWidth, wHeight) (100, 100)
 
@@ -22,28 +27,20 @@ main = do
     world <- generateNewWorld
     playIO window white 10 world drawWorld eventHandler stepWorld
 
-cSize, cWidth, cHeight :: Num a => a
-cSize = 40
-cWidth  = fromIntegral $ wWidth  `div` cSize
-cHeight = fromIntegral $ wHeight `div` cSize
-
 type Position = (Int, Int)
 
-randomPosition :: GenIO -> IO Position
-randomPosition gen = (,) <$> uniformR (0, cWidth - 1) gen <*> uniformR (0, cHeight - 1) gen
+type CellState = (Position, Int)
 
 data GameState = InGame | GameOver
 
 data CursorAction = MStop | MUp | MDown | MLeft | MRight | MEnter deriving Eq
 
-type CellState = (Position, Int)
-
 moveSnake :: CursorAction -> Position -> Position
 moveSnake MStop  (x, y) = (x, y)
-moveSnake MUp    (x, y) = (x, y + 1)
-moveSnake MDown  (x, y) = (x, y - 1)
-moveSnake MLeft  (x, y) = (x - 1, y)
-moveSnake MRight (x, y) = (x + 1, y)
+moveSnake MUp    (x, y) = if y + 1 >= cHeight then (x, y) else (x, y + 1)
+moveSnake MDown  (x, y) = if y <= 0 then (x, y) else (x, y - 1)
+moveSnake MLeft  (x, y) = if x <= 0 then (x, y) else (x - 1, y)
+moveSnake MRight (x, y) = if x + 1 >= cWidth then (x, y) else (x + 1, y)
 moveSnake MEnter (x, y) = (x, y)
 
 data World = World
@@ -54,6 +51,9 @@ data World = World
 	, _action :: CursorAction
     , _score  :: Int
     }
+
+randomPosition :: GenIO -> IO Position
+randomPosition gen = (,) <$> uniformR (0, cWidth - 1) gen <*> uniformR (0, cHeight - 1) gen
 
 getRandomList :: Variate a => Int -> (GenIO -> IO a) -> GenIO -> IO [a]
 getRandomList 0 _ _ = pure []
