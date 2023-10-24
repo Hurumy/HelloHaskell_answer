@@ -8,7 +8,7 @@ import Graphics.Gloss.Interface.IO.Game
 import System.Random.MWC
 
 bombNum :: Num a => a
-bombNum = ((cWidth) * (cHeight) - 1)
+bombNum = 20
 
 wWidth, wHeight :: Num a => a
 wWidth  = 640
@@ -61,7 +61,7 @@ getRandomList n sample gen = do
 	fix $ \loop -> do
 		gena <- sample gen
 		if gena `notElem` lst then pure $ [gena] ++ lst else loop
-	
+
 generateNewWorld :: IO World
 generateNewWorld = do
 	gen <- createSystemRandom
@@ -73,8 +73,10 @@ drawNumberToEachCell cell = let
 	(x, y) = fst cell
 	_x = int2Float x
 	_y = int2Float y
+	_wW = int2Float wWidth
+	_wH = int2Float wHeight
 	num = show $ snd cell in
-	translate ((-wWidth/2) + (cSize*_x) + (cSize/2 - 5)) ((-wHeight/2) + (cSize*_y) + (cSize/2 - 5)) . scale 0.1 0.1 $ text num
+	translate ((-_wW/2) + (cSize*_x) + (cSize/2 - 5)) ((-_wH/2) + (cSize*_y) + (cSize/2 - 5)) . scale 0.1 0.1 $ text num
 
 drawNumber :: [CellState] -> [Picture]
 drawNumber openedcell = map drawNumberToEachCell openedcell	
@@ -127,6 +129,25 @@ searchBombCell bom (x, y) = let
 	lst = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1), (x + 1, y + 1), (x + 1, y - 1), (x - 1, y + 1), (x - 1, y - 1)] in
 	foldr (+) 0 (map (isBombCell bom) lst)
 
+nextCell :: [Position] -> Position -> CellState
+nextCell bomb pos = (pos, searchBombCell bomb pos)
+
+openEmptyCell :: [Position] -> CellState -> [CellState] -> Int -> [CellState]
+openEmptyCell bomb ((x, y), num) openedcell n
+	| num /= 0							= [((x, y), num)]++openedcell
+	| n >= 5							= [((x, y), num)]++openedcell
+	| x == 0							= [((x, y), num)]++openedcell
+	| y == 0							= [((x, y), num)]++openedcell
+	| x >= cWidth						= [((x, y), num)]++openedcell
+	| y >= cHeight	 					= [((x, y), num)]++openedcell
+	| ((x, y), num) `elem` openedcell	= openedcell
+	| otherwise							= let
+		up = openEmptyCell bomb (nextCell bomb (x, y + 1)) ( [((x, y), num)] ) (n+1)
+		down = openEmptyCell bomb (nextCell bomb (x, y - 1)) ( [((x, y), num)] ) (n+1)
+		left = openEmptyCell bomb (nextCell bomb (x - 1, y)) ( [((x, y), num)] ) (n+1)
+		right = openEmptyCell bomb (nextCell bomb (x + 1, y)) ( [((x, y), num)] ) (n+1) in
+			up ++ down ++ left ++ right ++ openedcell
+
 stepWorld :: Float -> World -> IO World
 stepWorld _ w@World{..} = case _state of
     InGame -> do
@@ -136,7 +157,7 @@ stepWorld _ w@World{..} = case _state of
 		else if length _openedcell == (cWidth * cHeight) - bombNum
 			then pure $ w { _state = GameClear }
 		else if _action == MEnter && (x, y) `notElem` map fst _openedcell
-			then pure $ w { _openedcell = ((x, y), searchBombCell _target (x, y)) : _openedcell }
+			then pure $ w { _openedcell = openEmptyCell _target (nextCell _target (x, y)) _openedcell 0 }
         else
         	return $ w { _cursor = (x, y) }
     GameOver -> pure w
