@@ -148,6 +148,15 @@ openEmptyCell bomb ((x, y), num) openedcell n
 		right = openEmptyCell bomb (nextCell bomb (x + 1, y)) ( [((x, y), num)] ) (n+1) in
 			up ++ down ++ left ++ right ++ openedcell
 
+bfs :: [Position] -> [Position] -> [CellState] -> [CellState]
+bfs _ [] openedCell = openedCell
+bfs bomb ((x, y) : nv) openedCell
+	| snd (nextCell bomb (x, y)) == 0 = openedCell
+	| otherwise = bfs bomb (nv ++ adjacent (x, y)) (nextCell bomb (x, y) : openedCell)
+	where
+		adjacent (x, y) = filter (\(x', y') -> x' >= 0 && x' < cWidth && y' >= 0 && y' < cHeight && (nextCell bomb (x', y')) `notElem` openedCell) [(x + dx, y + dy) | [dx, dy] <- sequence [[-1 .. 1], [-1 .. 1]]]
+
+
 stepWorld :: Float -> World -> IO World
 stepWorld _ w@World{..} = case _state of
     InGame -> do
@@ -157,7 +166,7 @@ stepWorld _ w@World{..} = case _state of
 		else if length _openedcell == (cWidth * cHeight) - bombNum
 			then pure $ w { _state = GameClear }
 		else if _action == MEnter && (x, y) `notElem` map fst _openedcell
-			then pure $ w { _openedcell = openEmptyCell _target (nextCell _target (x, y)) _openedcell 0 }
+			then pure $ w { _openedcell = bfs _target [(x, y)] _openedcell }
         else
         	return $ w { _cursor = (x, y) }
     GameOver -> pure w
